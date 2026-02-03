@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Resurrector (Redirector)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="styles/options.css" />
+  </head>
+  <body>
+    <header>
+      <div class="header-title">
+        <img src="images/resurrector_wordmark.png" alt="Resurrector" class="header-wordmark">
+      </div>
+      <div class="header-actions">
+        <label class="toggle-switch" title="Enable/Disable All Redirects">
+          <input type="checkbox" id="master-toggle" checked>
+          <span class="toggle-slider"></span>
+        </label>
+        <button id="close-btn" class="close-button" title="Close">✕</button>
+      </div>
+    </header>
+
+    <main>
+      <!-- Add Rule Form -->
+      <section class="add-rule-panel">
+        <h2 id="form-title">Add New Rule</h2>
+        
+        <form id="rule-form">
+          <input type="hidden" id="edit-rule-id" value="">
+          
+          <div class="form-group">
+            <label for="rule-name">Name</label>
+            <input type="text" id="rule-name" placeholder="e.g., Redirect old API" required />
+          </div>
+
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label for="rule-from">From URL</label>
+              <input type="text" id="rule-from" placeholder="e.g., https://old.example.com/*" required />
+              <p class="hint">Use * as wildcard or enable regex mode</p>
+            </div>
+            
+            <div class="form-group flex-1">
+              <label for="rule-to">To URL</label>
+              <input type="text" id="rule-to" placeholder="e.g., https://new.example.com/" required />
+              <p class="hint">Destination URL (use \1, \2 for regex groups)</p>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>
+                <input type="checkbox" id="rule-regex" />
+                Use Regular Expression
+              </label>
+              <p class="hint">Enable regex pattern matching (RE2 syntax)</p>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" class="primary" id="save-btn">Add Rule</button>
+            <button type="button" id="cancel-btn" style="display: none;">Cancel</button>
+          </div>
+        </form>
+      </section>
+
+      <!-- Rules List -->
+      <section class="rules-section">
+        <div class="rules-header">
+          <h2>Redirect Rules</h2>
+          <div class="rules-actions">
+            <button id="export-btn" title="Export rules as JSON">Export</button>
+            <button id="import-btn" title="Import rules from JSON">Import</button>
+          </div>
+        </div>
+        
+        <div id="rules-list">
+          <div class="empty-state">
+            <p>No redirect rules yet. Add your first rule above!</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Hidden file input for import -->
+    <input type="file" id="import-file" accept=".json" style="display: none;" />
+
+    <!-- Bundled JS -->
+    <script type="module" src="../src/options/index.js"></script>
+  </body>
+</html>
