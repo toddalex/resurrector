@@ -303,9 +303,9 @@ button:active {
 .rule-item {
   display: grid;
   grid-template-columns: auto 1fr auto;
-  gap: 16px;
-  align-items: center;
-  padding: 16px;
+  gap: 12px;
+  align-items: start;
+  padding: 14px;
   background: #f8fafc;
   border: 2px solid var(--border);
   border-radius: 8px;
@@ -381,7 +381,7 @@ button:active {
 
 .rule-type-badge {
   display: inline-block;
-  margin-top: 8px;
+  margin-top: 6px;
   padding: 2px 8px;
   border-radius: 999px;
   font-size: 10px;

@@ -65,18 +65,13 @@ async function importRules(newRules) {
 // ---- Icon management ----
 
 async function updateIcon(enabled) {
-  try {
-    const suffix = enabled ? "" : "_off";
-    await chrome.action.setIcon({
-      path: {
-        16: chrome.runtime.getURL(`public/icons/resurrector_master${suffix}_16.png`),
-        32: chrome.runtime.getURL(`public/icons/resurrector_master${suffix}_32.png`),
-        48: chrome.runtime.getURL(`public/icons/resurrector_master${suffix}_48.png`),
-        128: chrome.runtime.getURL(`public/icons/resurrector_master${suffix}_128.png`),
-      },
-    });
-  } catch (e) {
-    console.warn("Could not update icon:", e);
+  console.log("Updating icon to:", enabled ? "ON" : "OFF");
+  
+  if (enabled) {
+    await chrome.action.setBadgeText({ text: "" });
+  } else {
+    await chrome.action.setBadgeText({ text: "OFF" });
+    await chrome.action.setBadgeBackgroundColor({ color: "#6b7280" });
   }
 }
 
