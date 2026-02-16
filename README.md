@@ -6,7 +6,12 @@
 
 <p align="center">
   A lightweight Chrome extension for URL redirection.<br>
-  Create custom redirect rules with wildcard and regex support.
+  Create custom redirect rules with wildcard and regex support.<br>
+  The reincarnation of the original chrome redirector extension.
+</p>
+
+<p align="center">
+  <a href="https://chromewebstore.google.com/detail/bkkbepmjgikohkenjolecnjfmhdfpgba"><strong>Install from Chrome Web Store →</strong></a>
 </p>
 
 ---
@@ -25,32 +30,13 @@
 
 ## Installation
 
-### From Source
+### Chrome Web Store (Recommended)
 
-1. Clone this repository:
-   ```bash
-   git clone https://github.com/yourusername/resurrector.git
-   cd resurrector
-   ```
+Install directly from the [Chrome Web Store](https://chromewebstore.google.com/detail/bkkbepmjgikohkenjolecnjfmhdfpgba).
 
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-3. Build the extension:
-   ```bash
-   npm run build
-   ```
-
-4. Load in Chrome:
-   - Open `chrome://extensions/`
-   - Enable **Developer mode** (top right toggle)
-   - Click **Load unpacked**
-   - Select the `dist` folder
-
-<!-- Screenshot: Chrome extensions page with Load unpacked highlighted -->
-<!-- ![Installation](docs/screenshots/installation.png) -->
+1. Visit the [Resurrector Chrome Web Store page](https://chromewebstore.google.com/detail/bkkbepmjgikohkenjolecnjfmhdfpgba)
+2. Click **Add to Chrome**
+3. Confirm by clicking **Add extension**
 
 ---
 
@@ -232,7 +218,13 @@ When the master toggle is OFF, the icon is grayed out and no redirects occur.
 
 ## Development
 
+For contributors who want to build from source:
+
 ```bash
+# Clone the repository
+git clone https://github.com/toddalex/resurrector.git
+cd resurrector
+
 # Install dependencies
 npm install
 
@@ -261,7 +253,7 @@ resurrector/
 │   │   └── options.css     # Styles
 │   ├── icons/              # Extension icons
 │   └── images/             # Wordmark logo
-└── dist/                   # Built extension (load this in Chrome)
+└── dist/                   # Built extension
 ```
 
 ---
@@ -304,9 +296,9 @@ If you're coming from the original Redirector extension:
 
 ### Extension not loading?
 
-- Make sure you're loading from the `dist` folder, not the root
-- Run `npm run build` first
+- Try removing and reinstalling from the [Chrome Web Store](https://chromewebstore.google.com/detail/bkkbepmjgikohkenjolecnjfmhdfpgba)
 - Check for errors in `chrome://extensions/`
+- Ensure Chrome is up to date
 
 ---
 

@@ -46,6 +46,8 @@ async function loadEnabled() {
   const res = await msgGetEnabled();
   if (res?.ok) {
     masterToggle.checked = res.enabled;
+    // Ensure icon badge is in sync with stored state
+    await msgSetEnabled(res.enabled);
   }
 }
 
@@ -116,6 +118,57 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
+// === URL Validation & Normalization ===
+
+/**
+ * Normalize a URL by adding https://www. if missing
+ * Only applies to non-regex "To" URLs
+ */
+function normalizeUrl(url) {
+  if (!url) return url;
+  
+  // Skip wildcards and URLs that already have protocol
+  if (url.startsWith("*") || url.startsWith("http://") || url.startsWith("https://")) {
+    return url;
+  }
+  
+  // Check if it looks like a domain (starts with alphanumeric and contains a dot)
+  if (/^[a-zA-Z0-9]/.test(url) && url.includes(".")) {
+    // Add www. if not already present (e.g., google.com -> www.google.com)
+    // But don't add if it looks like a subdomain already (e.g., api.example.com)
+    if (!url.startsWith("www.")) {
+      // Count dots - if only one dot, it's likely a bare domain like google.com
+      const dotCount = (url.match(/\./g) || []).length;
+      if (dotCount === 1) {
+        url = "www." + url;
+      }
+    }
+    return "https://" + url;
+  }
+  
+  return url;
+}
+
+/**
+ * Validate that a redirect URL is valid for Chrome's declarativeNetRequest
+ */
+function isValidRedirectUrl(url) {
+  if (!url) return false;
+  
+  // Must start with http:// or https://
+  if (!url.startsWith("http://") && !url.startsWith("https://")) {
+    return false;
+  }
+  
+  // Basic URL structure check
+  try {
+    new URL(url);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // === Form Management ===
 
 function resetForm() {
@@ -144,37 +197,64 @@ async function handleFormSubmit(e) {
   e.preventDefault();
 
   const isRegex = ruleRegex.checked;
+  let fromUrl = ruleFrom.value.trim();
+  let toUrl = ruleTo.value.trim();
+
+  // Normalize URLs (add https:// if missing) for non-regex rules
+  if (!isRegex) {
+    fromUrl = normalizeUrl(fromUrl);
+    toUrl = normalizeUrl(toUrl);
+    
+    // Update the form fields to show normalized URLs
+    ruleFrom.value = fromUrl;
+    ruleTo.value = toUrl;
+    
+    // Validate the "To" URL (must be a valid absolute URL)
+    if (!isValidRedirectUrl(toUrl)) {
+      alert("Invalid 'To URL'. Please enter a valid URL starting with http:// or https://\n\nExample: https://example.com/");
+      return;
+    }
+  }
+
   const rule = {
     name: ruleName.value.trim(),
-    from: ruleFrom.value.trim(),
+    from: fromUrl,
     type: isRegex ? "regex" : "wildcard",
   };
 
   if (isRegex) {
-    rule.regexSubstitution = ruleTo.value.trim();
+    rule.regexSubstitution = toUrl;
   } else {
-    rule.to = ruleTo.value.trim();
+    rule.to = toUrl;
   }
 
   const editId = editRuleId.value;
 
-  if (editId) {
-    // Update existing rule
-    rule.id = Number(editId);
-    const res = await msgUpdateRule(rule);
-    if (res?.ok) {
-      showFeedback(saveBtn, "Saved!", "#10b981");
-      resetForm();
-      await loadRules();
+  try {
+    if (editId) {
+      // Update existing rule
+      rule.id = Number(editId);
+      const res = await msgUpdateRule(rule);
+      if (res?.ok) {
+        showFeedback(saveBtn, "Saved!", "#10b981");
+        resetForm();
+        await loadRules();
+      } else {
+        alert("Failed to update rule: " + (res?.error || "Unknown error"));
+      }
+    } else {
+      // Add new rule
+      const res = await msgAddRule(rule);
+      if (res?.ok) {
+        showFeedback(saveBtn, "Added!", "#10b981");
+        resetForm();
+        await loadRules();
+      } else {
+        alert("Failed to add rule: " + (res?.error || "Unknown error"));
+      }
     }
-  } else {
-    // Add new rule
-    const res = await msgAddRule(rule);
-    if (res?.ok) {
-      showFeedback(saveBtn, "Added!", "#10b981");
-      resetForm();
-      await loadRules();
-    }
+  } catch (err) {
+    alert("Error saving rule: " + err.message);
   }
 }
 
@@ -301,7 +381,12 @@ function attachEventListeners() {
     if (e.target.type === "checkbox" && e.target.dataset.ruleId) {
       const id = Number(e.target.dataset.ruleId);
       const enabled = e.target.checked;
-      await msgToggleRule(id, enabled);
+      const res = await msgToggleRule(id, enabled);
+      if (!res?.ok) {
+        alert("Failed to toggle rule: " + (res?.error || "Unknown error"));
+        // Revert the checkbox state
+        e.target.checked = !enabled;
+      }
       await loadRules();
     }
   });

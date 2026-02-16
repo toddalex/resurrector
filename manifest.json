@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Resurrector (Redirector)",
-  "version": "1.0.0",
-  "description": "A lightweight URL redirector. Create custom redirect rules with wildcard and regex support.",
+  "version": "1.1.0",
+  "description": "A lightweight URL redirector. Create custom redirect rules with wildcard and regex support. The reincarnation of the original chrome redirector extension.",
   "permissions": [
     "declarativeNetRequest",
     "declarativeNetRequestWithHostAccess",
