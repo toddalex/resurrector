@@ -72,25 +72,118 @@ export function toDnrRule(internalRule) {
   };
 }
 
+// ---- RE2 unsupported syntax detection ----
+const RE2_UNSUPPORTED = [
+  { pattern: /\(\?=/, label: "positive lookahead (?=...)" },
+  { pattern: /\(\?!/, label: "negative lookahead (?!...)" },
+  { pattern: /\(\?<=/, label: "positive lookbehind (?<=...)" },
+  { pattern: /\(\?<!/, label: "negative lookbehind (?<!...)" },
+  { pattern: /\(\?P</, label: "named capture group (?P<...>)" },
+  { pattern: /\\[bB]/, label: "word boundary (\\b, \\B)" },
+];
+
+export function checkRe2Compatibility(pattern) {
+  const issues = [];
+  for (const { pattern: re, label } of RE2_UNSUPPORTED) {
+    if (re.test(pattern)) {
+      issues.push(label);
+    }
+  }
+  return issues;
+}
+
+// ---- Validate a DNR rule before registering ----
+export function validateRule(rule) {
+  const errors = [];
+
+  if (!rule.from || !rule.from.trim()) {
+    errors.push("From URL is required");
+  }
+
+  if (rule.type === "regex") {
+    if (!rule.regexSubstitution || !rule.regexSubstitution.trim()) {
+      errors.push("To URL (regex substitution) is required");
+    }
+    try {
+      new RegExp(rule.from);
+    } catch {
+      errors.push("Invalid regex pattern in From URL");
+    }
+    // Check for RE2-incompatible features
+    const re2Issues = checkRe2Compatibility(rule.from || "");
+    if (re2Issues.length > 0) {
+      errors.push(
+        "Unsupported RE2 syntax: " + re2Issues.join(", ") +
+        ". Chrome uses RE2 which does not support lookaheads, lookbehinds, or word boundaries"
+      );
+    }
+  } else {
+    if (!rule.to || !rule.to.trim()) {
+      errors.push("To URL is required");
+    }
+    try {
+      new URL(rule.to);
+    } catch {
+      errors.push("To URL must be a valid absolute URL (e.g. https://example.com)");
+    }
+  }
+
+  return errors;
+}
+
 // ---- Rebuild DNR rules from storage ----
 export async function rebuildDnrFromStorage() {
   const [rules, enabled] = await Promise.all([getRules(), getEnabled()]);
 
-  // Get existing rules to remove
   const existing = await chrome.declarativeNetRequest.getDynamicRules();
   const removeRuleIds = existing.map((r) => r.id);
 
-  // Only add rules if extension is enabled and rules are individually enabled
-  const addRules = enabled
-    ? rules.filter((r) => r.enabled !== false).map((r) => toDnrRule(r))
-    : [];
+  let addRules = [];
+  const failedRules = [];
 
-  await chrome.declarativeNetRequest.updateDynamicRules({
-    removeRuleIds,
-    addRules,
-  });
+  if (enabled) {
+    const activeRules = rules.filter((r) => r.enabled !== false);
+    for (const r of activeRules) {
+      const errors = validateRule(r);
+      if (errors.length === 0) {
+        addRules.push(toDnrRule(r));
+      } else {
+        failedRules.push({ id: r.id, name: r.name, errors });
+      }
+    }
+  }
 
-  console.log(`✅ DNR: ${addRules.length} rules active`);
+  // Try adding all valid rules at once
+  try {
+    await chrome.declarativeNetRequest.updateDynamicRules({
+      removeRuleIds,
+      addRules,
+    });
+  } catch (e) {
+    // If batch fails, fall back to adding rules one by one
+    await chrome.declarativeNetRequest.updateDynamicRules({
+      removeRuleIds,
+      addRules: [],
+    });
+
+    for (const dnrRule of addRules) {
+      try {
+        await chrome.declarativeNetRequest.updateDynamicRules({
+          removeRuleIds: [],
+          addRules: [dnrRule],
+        });
+      } catch {
+        const srcRule = rules.find((r) => r.id === dnrRule.id);
+        failedRules.push({
+          id: dnrRule.id,
+          name: srcRule?.name,
+          errors: ["Chrome rejected this rule — check the URL pattern"],
+        });
+      }
+    }
+  }
+
+  return { active: addRules.length - failedRules.length, failed: failedRules };
 }
 
 // ---- Messaging helpers for UI ----
@@ -128,4 +221,8 @@ export async function msgGetEnabled() {
 
 export async function msgSetEnabled(enabled) {
   return chrome.runtime.sendMessage({ type: "SET_ENABLED", enabled });
+}
+
+export async function msgSyncIcon() {
+  return chrome.runtime.sendMessage({ type: "SYNC_ICON" });
 }

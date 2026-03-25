@@ -2,6 +2,22 @@
 
 All notable changes to Resurrector (Redirector) will be documented in this file.
 
+## [1.1.1] - 2026-02-15
+
+### Fixed
+- **Critical: One bad rule no longer breaks all rules** — `rebuildDnrFromStorage` now validates each rule individually and falls back to per-rule registration if a batch update fails
+- **Rule validation on save** — Rules are validated in the background service worker before being stored, preventing invalid rules from entering storage
+- **From URL validation** — The "From URL" field is now validated (protocol/wildcard required for wildcard rules, regex syntax check for regex rules)
+- **RE2 compatibility checks** — Detects unsupported regex features (lookaheads, lookbehinds, word boundaries) and shows a clear error before saving, with guidance to use the Golang flavor on regex101.com for compatible testing
+- **Badge sync without rebuild** — Opening the popup now syncs the badge icon via a lightweight `SYNC_ICON` message instead of triggering a full DNR rebuild
+
+### Changed
+- **Header icon** — Replaced wordmark with the Resurrector master icon in the popup header
+
+### Removed
+- Removed `console.log` / `console.error` statements from production code
+- Removed unnecessary `web_accessible_resources` block (icons don't need to be exposed to websites)
+
 ## [1.1.0] - 2026-02-15
 
 ### Added

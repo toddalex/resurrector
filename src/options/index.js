@@ -11,6 +11,8 @@ import {
   msgImportRules,
   msgGetEnabled,
   msgSetEnabled,
+  msgSyncIcon,
+  checkRe2Compatibility,
 } from "../shared/storage.js";
 
 // DOM Elements
@@ -46,9 +48,9 @@ async function loadEnabled() {
   const res = await msgGetEnabled();
   if (res?.ok) {
     masterToggle.checked = res.enabled;
-    // Ensure icon badge is in sync with stored state
-    await msgSetEnabled(res.enabled);
   }
+  // Sync badge without triggering a full DNR rebuild
+  await msgSyncIcon();
 }
 
 async function loadRules() {
@@ -200,18 +202,50 @@ async function handleFormSubmit(e) {
   let fromUrl = ruleFrom.value.trim();
   let toUrl = ruleTo.value.trim();
 
-  // Normalize URLs (add https:// if missing) for non-regex rules
+  if (!fromUrl) {
+    alert("'From URL' is required.");
+    return;
+  }
+
+  if (!toUrl) {
+    alert("'To URL' is required.");
+    return;
+  }
+
   if (!isRegex) {
     fromUrl = normalizeUrl(fromUrl);
     toUrl = normalizeUrl(toUrl);
     
-    // Update the form fields to show normalized URLs
     ruleFrom.value = fromUrl;
     ruleTo.value = toUrl;
     
-    // Validate the "To" URL (must be a valid absolute URL)
     if (!isValidRedirectUrl(toUrl)) {
       alert("Invalid 'To URL'. Please enter a valid URL starting with http:// or https://\n\nExample: https://example.com/");
+      return;
+    }
+
+    // Validate "From URL" has a protocol or wildcard
+    if (!fromUrl.startsWith("http://") && !fromUrl.startsWith("https://") && !fromUrl.startsWith("*")) {
+      alert("Invalid 'From URL'. Please enter a URL starting with http://, https://, or * for wildcard.\n\nExample: https://old-site.com/*");
+      return;
+    }
+  } else {
+    // Validate regex pattern syntax
+    try {
+      new RegExp(fromUrl);
+    } catch {
+      alert("Invalid regex pattern in 'From URL'. Please check your syntax.\n\nTest patterns at regex101.com (select Golang flavor for RE2 compatibility).");
+      return;
+    }
+    // Check for RE2-incompatible features
+    const re2Issues = checkRe2Compatibility(fromUrl);
+    if (re2Issues.length > 0) {
+      alert(
+        "Your regex uses features not supported by Chrome's RE2 engine:\n\n" +
+        re2Issues.map((i) => "  - " + i).join("\n") +
+        "\n\nChrome does not support lookaheads, lookbehinds, or word boundaries.\n" +
+        "Tip: Use the Golang flavor on regex101.com for RE2-compatible testing."
+      );
       return;
     }
   }
@@ -232,22 +266,20 @@ async function handleFormSubmit(e) {
 
   try {
     if (editId) {
-      // Update existing rule
       rule.id = Number(editId);
       const res = await msgUpdateRule(rule);
       if (res?.ok) {
-        showFeedback(saveBtn, "Saved!", "#10b981");
         resetForm();
+        showFeedback(saveBtn, "Saved!", "#10b981");
         await loadRules();
       } else {
         alert("Failed to update rule: " + (res?.error || "Unknown error"));
       }
     } else {
-      // Add new rule
       const res = await msgAddRule(rule);
       if (res?.ok) {
-        showFeedback(saveBtn, "Added!", "#10b981");
         resetForm();
+        showFeedback(saveBtn, "Added!", "#10b981");
         await loadRules();
       } else {
         alert("Failed to add rule: " + (res?.error || "Unknown error"));

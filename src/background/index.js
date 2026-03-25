@@ -8,11 +8,17 @@ import {
   getEnabled,
   setEnabled,
   rebuildDnrFromStorage,
+  validateRule,
 } from "../shared/storage.js";
 
 // ---- CRUD Operations ----
 
 async function addRule(rule) {
+  const errors = validateRule(rule);
+  if (errors.length > 0) {
+    throw new Error("Invalid rule: " + errors.join("; "));
+  }
+
   const id = await getNextRuleId();
   const rules = await getRules();
   rules.push({ id, enabled: true, ...rule });
@@ -28,6 +34,11 @@ async function updateRule(partial) {
 
   const merged = { ...rules[i], ...partial, id: rules[i].id };
   if (merged.type !== "regex") delete merged.regexSubstitution;
+
+  const errors = validateRule(merged);
+  if (errors.length > 0) {
+    throw new Error("Invalid rule: " + errors.join("; "));
+  }
 
   rules[i] = merged;
   await setRules(rules);
@@ -65,8 +76,6 @@ async function importRules(newRules) {
 // ---- Icon management ----
 
 async function updateIcon(enabled) {
-  console.log("Updating icon to:", enabled ? "ON" : "OFF");
-  
   if (enabled) {
     await chrome.action.setBadgeText({ text: "" });
   } else {
@@ -78,14 +87,12 @@ async function updateIcon(enabled) {
 // ---- Lifecycle ----
 
 chrome.runtime.onInstalled.addListener(async () => {
-  console.log("🔧 Resurrector installed - rebuilding rules...");
   await rebuildDnrFromStorage();
   const enabled = await getEnabled();
   await updateIcon(enabled);
 });
 
 chrome.runtime.onStartup.addListener(async () => {
-  console.log("🔧 Resurrector started - rebuilding rules...");
   await rebuildDnrFromStorage();
   const enabled = await getEnabled();
   await updateIcon(enabled);
@@ -146,11 +153,16 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
           sendResponse({ ok: true });
           break;
         }
+        case "SYNC_ICON": {
+          const enabled = await getEnabled();
+          await updateIcon(enabled);
+          sendResponse({ ok: true, enabled });
+          break;
+        }
         default:
           sendResponse({ ok: false, error: "Unknown message type" });
       }
     } catch (e) {
-      console.error("BG error:", e);
       sendResponse({ ok: false, error: String(e) });
     }
   })();

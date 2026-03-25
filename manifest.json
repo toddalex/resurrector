@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Resurrector (Redirector)",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "A lightweight URL redirector with wildcard and regex support. The reincarnation of the original Redirector.",
   "permissions": [
     "declarativeNetRequest",
@@ -29,21 +29,5 @@
       "128": "public/icons/resurrector_master_128.png"
     }
   },
-  "options_page": "public/options.html",
-  "web_accessible_resources": [
-    {
-      "resources": [
-        "public/icons/resurrector_master_16.png",
-        "public/icons/resurrector_master_32.png",
-        "public/icons/resurrector_master_48.png",
-        "public/icons/resurrector_master_128.png",
-        "public/icons/resurrector_master_off_16.png",
-        "public/icons/resurrector_master_off_32.png",
-        "public/icons/resurrector_master_off_48.png",
-        "public/icons/resurrector_master_off_128.png"
-      ],
-      "matches": ["<all_urls>"],
-      "extension_ids": []
-    }
-  ]
+  "options_page": "public/options.html"
 }
