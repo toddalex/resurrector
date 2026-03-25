@@ -1,6 +1,10 @@
 # Resurrector (Redirector)
 
 <p align="center">
+  <img src="public/icons/resurrector_master_128.png" alt="Resurrector (Redirector)" width="128">
+</p>
+
+<p align="center">
   A lightweight Chrome extension for URL redirection.<br>
   Create custom redirect rules with wildcard and regex support.<br>
   The reincarnation of the original chrome redirector extension.
@@ -15,12 +19,14 @@
 ## Features
 
 - **Custom Redirect Rules** — Create your own From → To URL redirects
+- **URL Auto-Prefix** — Enter `google.com` and it auto-corrects to `https://www.google.com`
 - **Wildcard Support** — Use `*` as a wildcard in URL patterns
 - **Regex Support** — Enable regex mode for advanced pattern matching (RE2 syntax)
+- **RE2 Validation** — Detects unsupported regex features (lookaheads, lookbehinds) before saving
 - **Import/Export** — Backup and share your rules as JSON (compatible with Redirector extension)
 - **Master Toggle** — Enable/disable all redirects with one click
 - **Per-Rule Toggle** — Enable/disable individual rules
-- **Lightweight** — Built for Chrome's MV3, ~14KB total bundle size
+- **Lightweight** — Built for Chrome's MV3
 
 ---
 
@@ -42,17 +48,11 @@ Install directly from the [Chrome Web Store](https://chromewebstore.google.com/d
 
 Click the Resurrector icon in your Chrome toolbar to open the popup.
 
-<!-- Screenshot: Extension icon in toolbar -->
-<!-- ![Toolbar Icon](docs/screenshots/toolbar-icon.png) -->
-
 ### Interface Overview
-
-<!-- Screenshot: Full popup interface with annotations -->
-<!-- ![Interface Overview](docs/screenshots/interface-overview.png) -->
 
 | Element | Description |
 |---------|-------------|
-| **Header** | Resurrector wordmark logo |
+| **Header Icon** | Resurrector logo |
 | **Master Toggle** | Enable/disable ALL redirect rules at once |
 | **Add New Rule** | Form to create a new redirect rule |
 | **Redirect Rules** | List of all your saved rules |
@@ -64,10 +64,7 @@ Click the Resurrector icon in your Chrome toolbar to open the popup.
 
 ### Basic Wildcard Rule
 
-Use wildcards (`*`) for simple URL matching.
-
-<!-- Screenshot: Add rule form filled out with wildcard example -->
-<!-- ![Wildcard Rule](docs/screenshots/wildcard-rule.png) -->
+Use wildcards (`*`) for simple URL matching. URLs entered without `https://www.` are auto-prefixed.
 
 **Example: Redirect old domain to new**
 
@@ -86,9 +83,6 @@ Use wildcards (`*`) for simple URL matching.
 
 Enable **Use Regular Expression** for pattern matching with capture groups.
 
-<!-- Screenshot: Add rule form with regex checkbox enabled -->
-<!-- ![Regex Rule](docs/screenshots/regex-rule.png) -->
-
 **Example: Preserve path when redirecting**
 
 | Field | Value |
@@ -106,6 +100,8 @@ Enable **Use Regular Expression** for pattern matching with capture groups.
 
 ## Regex Pattern Reference
 
+Chrome uses the **RE2** regex engine, which does **not** support lookaheads, lookbehinds, or word boundaries. Use the **Golang** flavor on [regex101.com](https://regex101.com/) for compatible testing.
+
 | Pattern | Meaning | Example |
 |---------|---------|---------|
 | `^` | Start of URL | `^https://` |
@@ -115,6 +111,16 @@ Enable **Use Regular Expression** for pattern matching with capture groups.
 | `\d+` | One or more digits | `/page/(\d+)` |
 | `\1`, `\2` | Capture group reference | `https://new.com/\1` |
 | `[^/]+` | Any chars except `/` | `/user/([^/]+)/` |
+
+### Unsupported in RE2
+
+| Feature | Syntax | Status |
+|---------|--------|--------|
+| Positive lookahead | `(?=...)` | Not supported |
+| Negative lookahead | `(?!...)` | Not supported |
+| Positive lookbehind | `(?<=...)` | Not supported |
+| Negative lookbehind | `(?<!...)` | Not supported |
+| Word boundary | `\b`, `\B` | Not supported |
 
 ### Common Regex Examples
 
@@ -150,15 +156,9 @@ To:   https://news.example.com/\1
 
 Click the checkbox next to any rule to enable/disable it without deleting.
 
-<!-- Screenshot: Rule list with one rule disabled (grayed out) -->
-<!-- ![Toggle Rule](docs/screenshots/toggle-rule.png) -->
-
 ### Edit a Rule
 
 Click the **Edit** button on any rule to load it into the form for modification.
-
-<!-- Screenshot: Edit button highlighted on a rule -->
-<!-- ![Edit Rule](docs/screenshots/edit-rule.png) -->
 
 ### Delete a Rule
 
@@ -174,9 +174,6 @@ Click the **Delete** button and confirm to remove a rule permanently.
 2. A JSON file downloads automatically
 3. Save this file as a backup
 
-<!-- Screenshot: Export button highlighted -->
-<!-- ![Export](docs/screenshots/export.png) -->
-
 ### Import Rules
 
 1. Click the **Import** button
@@ -187,16 +184,13 @@ Click the **Delete** button and confirm to remove a rule permanently.
 - **Resurrector format** — Native JSON array
 - **Redirector format** — Exported from the original Redirector extension
 
-<!-- Screenshot: Import button and file picker -->
-<!-- ![Import](docs/screenshots/import.png) -->
-
 ---
 
 ## Extension States
 
 ### Enabled (Active)
 
-When the master toggle is ON, the icon appears in full color and redirects are active.
+When the master toggle is ON, the icon appears normally and redirects are active.
 
 <p align="center">
   <img src="public/icons/resurrector_master_128.png" alt="Enabled" width="64">
@@ -204,11 +198,7 @@ When the master toggle is ON, the icon appears in full color and redirects are a
 
 ### Disabled (Inactive)
 
-When the master toggle is OFF, the icon is grayed out and no redirects occur.
-
-<p align="center">
-  <img src="public/icons/resurrector_master_off_128.png" alt="Disabled" width="64">
-</p>
+When the master toggle is OFF, the icon displays an **"OFF" badge** and no redirects occur.
 
 ---
 
@@ -247,8 +237,7 @@ resurrector/
 │   ├── options.html        # Popup HTML
 │   ├── styles/
 │   │   └── options.css     # Styles
-│   ├── icons/              # Extension icons
-│   └── images/             # Wordmark logo
+│   └── icons/              # Extension icons
 └── dist/                   # Built extension
 ```
 
@@ -258,10 +247,10 @@ resurrector/
 
 - **Manifest Version:** 3 (MV3)
 - **API:** `declarativeNetRequest` (not deprecated `webRequest`)
+- **Regex Engine:** RE2 (no lookaheads/lookbehinds)
 - **Storage:** `chrome.storage.local`
 - **Max Rules:** 5,000 dynamic rules
 - **Max Regex Rules:** 1,000
-- **Bundle Size:** ~14KB (excluding images)
 
 ---
 
@@ -280,10 +269,16 @@ If you're coming from the original Redirector extension:
 
 ### Rules not working?
 
-1. Check the **master toggle** is ON (icon should be colorful)
+1. Check the **master toggle** is ON (no "OFF" badge on icon)
 2. Check the **individual rule toggle** is checked
 3. Verify your URL pattern matches the actual URL
-4. For regex rules, test your pattern at [regex101.com](https://regex101.com/) (select "ECMAScript" flavor)
+4. For regex rules, test your pattern at [regex101.com](https://regex101.com/) (select **Golang** flavor for RE2 compatibility)
+
+### Regex not working?
+
+- Chrome uses **RE2**, not JavaScript/PCRE regex
+- Lookaheads (`(?=...)`, `(?!...)`), lookbehinds, and word boundaries are **not supported**
+- The extension will alert you if you try to save an unsupported pattern
 
 ### Import failed?
 
