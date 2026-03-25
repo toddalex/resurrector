@@ -1,10 +1,6 @@
 # Resurrector (Redirector)
 
 <p align="center">
-  <img src="public/images/resurrector_wordmark.png" alt="Resurrector (Redirector)" width="400">
-</p>
-
-<p align="center">
   A lightweight Chrome extension for URL redirection.<br>
   Create custom redirect rules with wildcard and regex support.<br>
   The reincarnation of the original chrome redirector extension.
