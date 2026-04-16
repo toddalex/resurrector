@@ -2,6 +2,11 @@
 
 All notable changes to Resurrector (Redirector) will be documented in this file.
 
+## [1.2.0] - 2026-04-16
+
+### Added
+- **Cross-device sync** — Redirect rules now sync across Chrome instances via `chrome.storage.sync`, so rules follow your Google account to any device
+
 ## [1.1.1] - 2026-02-15
 
 ### Fixed
