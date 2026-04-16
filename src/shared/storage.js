@@ -1,27 +1,38 @@
 // src/shared/storage.js
 // Storage and DNR rule management for Resurrector
 
-const RULES_KEY = "rules";
+export const RULES_KEY = "rules";
 const NEXT_ID_KEY = "nextRuleId";
 const ENABLED_KEY = "extensionEnabled";
 
-// ---- Rule storage (chrome.storage.local) ----
+// ---- Rule storage (chrome.storage.sync for cross-device sync) ----
 export async function getRules() {
-  const { [RULES_KEY]: rules = [] } = await chrome.storage.local.get(RULES_KEY);
+  const { [RULES_KEY]: rules = [] } = await chrome.storage.sync.get(RULES_KEY);
   return rules;
 }
 
 export async function setRules(rules) {
-  await chrome.storage.local.set({ [RULES_KEY]: Array.isArray(rules) ? rules : [] });
+  try {
+    await chrome.storage.sync.set({ [RULES_KEY]: Array.isArray(rules) ? rules : [] });
+  } catch (e) {
+    if (e.message?.includes("QUOTA")) {
+      throw new Error(
+        "Sync storage quota exceeded — too many rules to sync across devices. " +
+        "Chrome allows ~8 KB of synced rule data (~40 average rules). " +
+        "Remove unused rules or export a backup first."
+      );
+    }
+    throw e;
+  }
 }
 
 export async function getNextRuleId() {
-  const { [NEXT_ID_KEY]: nextRuleId = 1 } = await chrome.storage.local.get(NEXT_ID_KEY);
-  await chrome.storage.local.set({ [NEXT_ID_KEY]: nextRuleId + 1 });
+  const { [NEXT_ID_KEY]: nextRuleId = 1 } = await chrome.storage.sync.get(NEXT_ID_KEY);
+  await chrome.storage.sync.set({ [NEXT_ID_KEY]: nextRuleId + 1 });
   return nextRuleId;
 }
 
-// ---- Extension enabled state ----
+// ---- Extension enabled state (local — per-device preference) ----
 export async function getEnabled() {
   const { [ENABLED_KEY]: enabled = true } = await chrome.storage.local.get(ENABLED_KEY);
   return enabled;
@@ -29,6 +40,30 @@ export async function getEnabled() {
 
 export async function setEnabled(enabled) {
   await chrome.storage.local.set({ [ENABLED_KEY]: !!enabled });
+}
+
+// ---- One-time migration from local to sync (v1.1.x → v1.2.0) ----
+export async function migrateLocalToSync() {
+  const { [RULES_KEY]: syncRules } = await chrome.storage.sync.get(RULES_KEY);
+  if (syncRules !== undefined) {
+    return false;
+  }
+
+  const localData = await chrome.storage.local.get([RULES_KEY, NEXT_ID_KEY]);
+  const localRules = localData[RULES_KEY];
+  const localNextId = localData[NEXT_ID_KEY];
+
+  if (!localRules || localRules.length === 0) {
+    return false;
+  }
+
+  const syncPayload = { [RULES_KEY]: localRules };
+  if (localNextId !== undefined) {
+    syncPayload[NEXT_ID_KEY] = localNextId;
+  }
+
+  await chrome.storage.sync.set(syncPayload);
+  return true;
 }
 
 // ---- Map internal rule to DNR rule (MV3) ----
