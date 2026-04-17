@@ -2,6 +2,17 @@
 
 All notable changes to Resurrector (Redirector) will be documented in this file.
 
+## [1.2.0] - 2026-04-16
+
+### Added
+- **Cross-device sync** — Redirect rules now sync across Chrome instances via `chrome.storage.sync`, so rules follow your Google account to any device
+- **Automatic migration** — Existing rules from v1.1.x are automatically migrated to sync storage on upgrade
+- **Live sync refresh** — The popup auto-refreshes when rules arrive from another device
+- **Quota handling** — Clear error message when sync storage limit is exceeded (~40 rules)
+
+### Changed
+- **Storage:** Rules and rule IDs now use `chrome.storage.sync`; master toggle remains in `chrome.storage.local` as a per-device preference
+
 ## [1.1.1] - 2026-02-15
 
 ### Fixed

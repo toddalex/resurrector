@@ -23,6 +23,7 @@
 - **Wildcard Support** — Use `*` as a wildcard in URL patterns
 - **Regex Support** — Enable regex mode for advanced pattern matching (RE2 syntax)
 - **RE2 Validation** — Detects unsupported regex features (lookaheads, lookbehinds) before saving
+- **Cross-Device Sync** — Rules sync across Chrome instances via your Google account
 - **Import/Export** — Backup and share your rules as JSON (compatible with Redirector extension)
 - **Master Toggle** — Enable/disable all redirects with one click
 - **Per-Rule Toggle** — Enable/disable individual rules
@@ -248,7 +249,7 @@ resurrector/
 - **Manifest Version:** 3 (MV3)
 - **API:** `declarativeNetRequest` (not deprecated `webRequest`)
 - **Regex Engine:** RE2 (no lookaheads/lookbehinds)
-- **Storage:** `chrome.storage.local`
+- **Storage:** `chrome.storage.sync` (cross-device), `chrome.storage.local` (per-device preferences)
 - **Max Rules:** 5,000 dynamic rules
 - **Max Regex Rules:** 1,000
 

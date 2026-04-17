@@ -2,6 +2,7 @@
 // Resurrector Options Page
 
 import {
+  RULES_KEY,
   msgListRules,
   msgAddRule,
   msgUpdateRule,
@@ -40,6 +41,13 @@ async function init() {
   await loadEnabled();
   await loadRules();
   attachEventListeners();
+
+  // Auto-refresh rule list when rules sync from another device
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName === "sync" && changes[RULES_KEY]) {
+      loadRules();
+    }
+  });
 }
 
 // === State Management ===

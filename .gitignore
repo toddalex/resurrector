@@ -18,6 +18,9 @@ Thumbs.db
 *.log
 npm-debug.log*
 
+# Screenshots (Chrome Web Store assets)
+screenshots/
+
 # Environment
 .env
 .env.local

@@ -2,6 +2,7 @@
 // Resurrector - URL Redirector Extension
 
 import {
+  RULES_KEY,
   getRules,
   setRules,
   getNextRuleId,
@@ -9,6 +10,7 @@ import {
   setEnabled,
   rebuildDnrFromStorage,
   validateRule,
+  migrateLocalToSync,
 } from "../shared/storage.js";
 
 // ---- CRUD Operations ----
@@ -86,7 +88,10 @@ async function updateIcon(enabled) {
 
 // ---- Lifecycle ----
 
-chrome.runtime.onInstalled.addListener(async () => {
+chrome.runtime.onInstalled.addListener(async (details) => {
+  if (details.reason === "update" || details.reason === "install") {
+    await migrateLocalToSync();
+  }
   await rebuildDnrFromStorage();
   const enabled = await getEnabled();
   await updateIcon(enabled);
@@ -96,6 +101,14 @@ chrome.runtime.onStartup.addListener(async () => {
   await rebuildDnrFromStorage();
   const enabled = await getEnabled();
   await updateIcon(enabled);
+});
+
+// ---- Sync: rebuild DNR when rules arrive from another device ----
+
+chrome.storage.onChanged.addListener(async (changes, areaName) => {
+  if (areaName === "sync" && changes[RULES_KEY]) {
+    await rebuildDnrFromStorage();
+  }
 });
 
 // ---- Messaging API ----
