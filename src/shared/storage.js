@@ -250,6 +250,10 @@ export async function msgImportRules(rules) {
   return chrome.runtime.sendMessage({ type: "IMPORT_RULES", rules });
 }
 
+export async function msgReorderRules(orderedIds) {
+  return chrome.runtime.sendMessage({ type: "REORDER_RULES", orderedIds });
+}
+
 export async function msgGetEnabled() {
   return chrome.runtime.sendMessage({ type: "GET_ENABLED" });
 }

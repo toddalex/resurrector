@@ -10,6 +10,7 @@ import {
   msgToggleRule,
   msgExportRules,
   msgImportRules,
+  msgReorderRules,
   msgGetEnabled,
   msgSetEnabled,
   msgSyncIcon,
@@ -92,10 +93,10 @@ function createRuleElement(rule) {
   const div = document.createElement("div");
   div.className = `rule-item ${rule.enabled === false ? "disabled" : ""}`;
   div.dataset.ruleId = rule.id;
-
   const typeLabel = rule.type === "regex" ? "Regex" : "Wildcard";
 
   div.innerHTML = `
+    <div class="drag-handle" title="Drag to reorder">⠿</div>
     <div class="rule-toggle">
       <input type="checkbox" ${rule.enabled !== false ? "checked" : ""} data-rule-id="${rule.id}" />
     </div>
@@ -455,6 +456,92 @@ function attachEventListeners() {
   exportBtn.addEventListener("click", handleExport);
   importBtn.addEventListener("click", handleImportClick);
   importFile.addEventListener("change", handleImportFile);
+
+  // Drag-and-drop reordering
+  initDragAndDrop();
+}
+
+// === Drag & Drop ===
+
+let draggedEl = null;
+let handleGrabbed = false;
+
+function initDragAndDrop() {
+  // Track mousedown on the drag handle to gate drag initiation
+  rulesListEl.addEventListener("mousedown", (e) => {
+    if (e.target.closest(".drag-handle")) {
+      handleGrabbed = true;
+      const ruleItem = e.target.closest(".rule-item");
+      if (ruleItem) ruleItem.draggable = true;
+    }
+  });
+
+  document.addEventListener("mouseup", () => {
+    handleGrabbed = false;
+    rulesListEl.querySelectorAll(".rule-item[draggable]").forEach((el) => {
+      el.draggable = false;
+    });
+  });
+
+  rulesListEl.addEventListener("dragstart", (e) => {
+    const ruleItem = e.target.closest(".rule-item");
+    if (!ruleItem || !handleGrabbed) {
+      e.preventDefault();
+      return;
+    }
+    draggedEl = ruleItem;
+    ruleItem.classList.add("dragging");
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", ruleItem.dataset.ruleId);
+  });
+
+  rulesListEl.addEventListener("dragend", () => {
+    if (draggedEl) {
+      draggedEl.classList.remove("dragging");
+      draggedEl.draggable = false;
+      draggedEl = null;
+    }
+    handleGrabbed = false;
+    rulesListEl.querySelectorAll(".rule-item.drag-over").forEach((el) =>
+      el.classList.remove("drag-over")
+    );
+  });
+
+  rulesListEl.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+
+    const target = e.target.closest(".rule-item");
+    if (!target || target === draggedEl) return;
+
+    rulesListEl.querySelectorAll(".rule-item.drag-over").forEach((el) =>
+      el.classList.remove("drag-over")
+    );
+    target.classList.add("drag-over");
+
+    const rect = target.getBoundingClientRect();
+    const midY = rect.top + rect.height / 2;
+    if (e.clientY < midY) {
+      rulesListEl.insertBefore(draggedEl, target);
+    } else {
+      rulesListEl.insertBefore(draggedEl, target.nextSibling);
+    }
+  });
+
+  rulesListEl.addEventListener("drop", async (e) => {
+    e.preventDefault();
+    rulesListEl.querySelectorAll(".rule-item.drag-over").forEach((el) =>
+      el.classList.remove("drag-over")
+    );
+
+    const items = rulesListEl.querySelectorAll(".rule-item");
+    const orderedIds = [...items].map((el) => Number(el.dataset.ruleId));
+
+    const res = await msgReorderRules(orderedIds);
+    if (res?.ok) {
+      await loadRules();
+    }
+  });
 }
 
 // Start

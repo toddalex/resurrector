@@ -75,6 +75,18 @@ async function importRules(newRules) {
   await rebuildDnrFromStorage();
 }
 
+async function reorderRules(orderedIds) {
+  const rules = await getRules();
+  const byId = new Map(rules.map((r) => [r.id, r]));
+  const reordered = orderedIds.map((id) => byId.get(id)).filter(Boolean);
+  // Append any rules not in orderedIds (shouldn't happen, but defensive)
+  for (const r of rules) {
+    if (!orderedIds.includes(r.id)) reordered.push(r);
+  }
+  await setRules(reordered);
+  await rebuildDnrFromStorage();
+}
+
 // ---- Icon management ----
 
 async function updateIcon(enabled) {
@@ -151,6 +163,11 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         }
         case "IMPORT_RULES": {
           await importRules(msg.rules);
+          sendResponse({ ok: true });
+          break;
+        }
+        case "REORDER_RULES": {
+          await reorderRules(msg.orderedIds);
           sendResponse({ ok: true });
           break;
         }

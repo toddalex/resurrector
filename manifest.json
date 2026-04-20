@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Resurrector (Redirector)",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "A lightweight URL redirector with wildcard and regex support. The reincarnation of the original Redirector.",
   "permissions": [
     "declarativeNetRequest",
