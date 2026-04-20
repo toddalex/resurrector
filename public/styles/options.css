@@ -294,14 +294,14 @@ button:active {
 
 .rule-item {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto auto 1fr auto;
   gap: 12px;
   align-items: start;
   padding: 14px;
   background: #f8fafc;
   border: 2px solid var(--border);
   border-radius: 8px;
-  transition: all 0.2s;
+  transition: background 0.2s, border-color 0.2s, opacity 0.2s, box-shadow 0.2s;
 }
 
 .rule-item:hover {
@@ -311,6 +311,39 @@ button:active {
 
 .rule-item.disabled {
   opacity: 0.5;
+}
+
+/* Drag handle */
+.drag-handle {
+  display: flex;
+  align-items: center;
+  cursor: grab;
+  color: var(--muted);
+  font-size: 16px;
+  padding: 2px 0;
+  user-select: none;
+  line-height: 1;
+  letter-spacing: 1px;
+  transition: color 0.15s;
+}
+
+.drag-handle:hover {
+  color: var(--fg);
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+/* Drag states */
+.rule-item.dragging {
+  opacity: 0.4;
+  border-style: dashed;
+}
+
+.rule-item.drag-over {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--ring);
 }
 
 .rule-toggle {
@@ -421,7 +454,7 @@ button:active {
   }
 
   .rule-item {
-    grid-template-columns: auto 1fr;
+    grid-template-columns: auto auto 1fr;
   }
 
   .rule-actions {

@@ -2,6 +2,11 @@
 
 All notable changes to Resurrector (Redirector) will be documented in this file.
 
+## [1.2.1] - 2026-04-20
+
+### Added
+- **Drag-and-drop rule reordering** — Rules can now be rearranged by dragging the grip handle on each rule; new order persists across sessions and syncs across devices
+
 ## [1.2.0] - 2026-04-16
 
 ### Added
