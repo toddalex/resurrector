@@ -2,7 +2,12 @@
 
 All notable changes to Resurrector (Redirector) will be documented in this file.
 
-## [Unreleased]
+## [1.3.0] - 2026-11-21
+
+### Added
+- **Tabs** — Organize rules into tabs shown above the rule list (All, plus your own). Create with **+**, rename by double-clicking or from the **⋯** menu, and delete (rules move back to All). Drag a rule onto a tab to move it; new rules go into the tab you are viewing. Tabs sync across devices and the last-viewed tab is remembered per device
+- **Per-tab on/off switch** — Turn every rule in a tab on or off at once without changing each rule's own setting
+- **Tabs in import/export** — Exports include each rule's tab name (older versions ignore it); importing recreates or reuses tabs by name, and Redirector imports land in an "Imported from Redirector" tab
 
 ### Fixed
 - **Redirector import: capture groups** — Redirector `$1`–`$9` references are converted to Chrome's `\1`–`\9`. Wildcard rules whose redirect URL uses captures (e.g. `https://demo.url.com*` → `https://beta.demo.url.com$1`) are imported as anchored regex rules so the captured text is carried over instead of appearing as a literal `$1`

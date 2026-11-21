@@ -67,8 +67,14 @@
       <!-- Rules List -->
       <section class="rules-section">
         <div class="rules-header">
-          <h2>Redirect Rules</h2>
+          <div id="group-tabs" class="group-tabs" role="tablist" aria-label="Rule tabs">
+            <h2>Redirect Rules</h2>
+          </div>
           <div class="rules-actions">
+            <label class="toggle-switch small" id="group-toggle-wrap" title="Turn every rule in this tab on or off" hidden>
+              <input type="checkbox" id="group-toggle" aria-label="Rules in this tab enabled">
+              <span class="toggle-slider"></span>
+            </label>
             <button id="export-btn" title="Export rules as JSON">Export</button>
             <button id="import-btn" title="Import rules from JSON">Import</button>
           </div>

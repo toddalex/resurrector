@@ -3,8 +3,12 @@
 
 import {
   RULES_KEY,
+  GROUPS_KEY,
   getRules,
   setRules,
+  getGroups,
+  setGroups,
+  newGroupId,
   getNextRuleId,
   getEnabled,
   setEnabled,
@@ -65,12 +69,76 @@ async function toggleRule(id, enabled) {
   await rebuildDnrFromStorage();
 }
 
+// Imported rules may name a tab with `group`; it is matched by name or created.
 async function importRules(newRules) {
-  const rules = await getRules();
+  const [rules, groups] = await Promise.all([getRules(), getGroups()]);
+  let groupsChanged = false;
   for (const raw of newRules) {
-    const id = await getNextRuleId();
-    rules.push({ id, enabled: true, ...raw });
+    const { id: _id, groupId: _groupId, group, ...rest } = raw;
+    const rule = { enabled: true, ...rest, id: await getNextRuleId() };
+    if (group) {
+      let g = groups.find((x) => x.name === group);
+      if (!g) {
+        g = { id: newGroupId(), name: group, enabled: true };
+        groups.push(g);
+        groupsChanged = true;
+      }
+      rule.groupId = g.id;
+    }
+    rules.push(rule);
   }
+  if (groupsChanged) await setGroups(groups);
+  await setRules(rules);
+  await rebuildDnrFromStorage();
+}
+
+async function exportRules() {
+  const [rules, groups] = await Promise.all([getRules(), getGroups()]);
+  // IDs are per-install; tabs are exported by name so older versions simply ignore them
+  return rules.map(({ id, groupId, ...rest }) => {
+    const group = groups.find((g) => g.id === groupId);
+    return group ? { ...rest, group: group.name } : rest;
+  });
+}
+
+// ---- Tabs ----
+
+async function createGroup(name) {
+  const groups = await getGroups();
+  const group = { id: newGroupId(), name, enabled: true };
+  groups.push(group);
+  await setGroups(groups);
+  return group;
+}
+
+async function updateGroup(partial) {
+  const groups = await getGroups();
+  const i = groups.findIndex((g) => g.id === partial.id);
+  if (i === -1) throw new Error("Tab not found: " + partial.id);
+  const enabledChanged = "enabled" in partial && partial.enabled !== groups[i].enabled;
+  groups[i] = { ...groups[i], ...partial };
+  await setGroups(groups);
+  if (enabledChanged) await rebuildDnrFromStorage();
+  return groups[i];
+}
+
+// Deleting a tab keeps its rules; they move back to All.
+async function deleteGroup(id) {
+  const [rules, groups] = await Promise.all([getRules(), getGroups()]);
+  for (const r of rules) {
+    if (r.groupId === id) delete r.groupId;
+  }
+  await setRules(rules);
+  await setGroups(groups.filter((g) => g.id !== id));
+  await rebuildDnrFromStorage();
+}
+
+async function moveRule(ruleId, groupId) {
+  const rules = await getRules();
+  const rule = rules.find((r) => r.id === Number(ruleId));
+  if (!rule) throw new Error("Rule not found: " + ruleId);
+  if (groupId) rule.groupId = groupId;
+  else delete rule.groupId;
   await setRules(rules);
   await rebuildDnrFromStorage();
 }
@@ -118,7 +186,7 @@ chrome.runtime.onStartup.addListener(async () => {
 // ---- Sync: rebuild DNR when rules arrive from another device ----
 
 chrome.storage.onChanged.addListener(async (changes, areaName) => {
-  if (areaName === "sync" && changes[RULES_KEY]) {
+  if (areaName === "sync" && (changes[RULES_KEY] || changes[GROUPS_KEY])) {
     await rebuildDnrFromStorage();
   }
 });
@@ -150,15 +218,30 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
           break;
         }
         case "LIST_RULES": {
-          const rules = await getRules();
-          sendResponse({ ok: true, rules });
+          const [rules, groups] = await Promise.all([getRules(), getGroups()]);
+          sendResponse({ ok: true, rules, groups });
           break;
         }
         case "EXPORT_RULES": {
-          const rules = await getRules();
-          // Strip IDs for export
-          const exportData = rules.map(({ id, ...rest }) => rest);
-          sendResponse({ ok: true, rules: exportData });
+          sendResponse({ ok: true, rules: await exportRules() });
+          break;
+        }
+        case "CREATE_GROUP": {
+          sendResponse({ ok: true, group: await createGroup(msg.name) });
+          break;
+        }
+        case "UPDATE_GROUP": {
+          sendResponse({ ok: true, group: await updateGroup(msg.group) });
+          break;
+        }
+        case "DELETE_GROUP": {
+          await deleteGroup(msg.id);
+          sendResponse({ ok: true });
+          break;
+        }
+        case "MOVE_RULE": {
+          await moveRule(msg.ruleId, msg.groupId);
+          sendResponse({ ok: true });
           break;
         }
         case "IMPORT_RULES": {

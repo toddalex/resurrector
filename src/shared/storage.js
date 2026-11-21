@@ -2,6 +2,7 @@
 // Storage and DNR rule management for Resurrector
 
 export const RULES_KEY = "rules";
+export const GROUPS_KEY = "groups";
 const NEXT_ID_KEY = "nextRuleId";
 const ENABLED_KEY = "extensionEnabled";
 
@@ -24,6 +25,35 @@ export async function setRules(rules) {
     }
     throw e;
   }
+}
+
+// ---- Tab (group) storage: [{ id, name, enabled }], rules reference a tab by groupId ----
+export async function getGroups() {
+  const { [GROUPS_KEY]: groups = [] } = await chrome.storage.sync.get(GROUPS_KEY);
+  return Array.isArray(groups) ? groups : [];
+}
+
+export async function setGroups(groups) {
+  try {
+    await chrome.storage.sync.set({ [GROUPS_KEY]: groups });
+  } catch (e) {
+    if (e.message?.includes("QUOTA")) {
+      throw new Error("Sync storage quota exceeded — remove unused tabs or rules.");
+    }
+    throw e;
+  }
+}
+
+export function newGroupId() {
+  return "g" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
+
+/** A rule redirects only when it and its tab (if it has one) are both enabled. */
+export function isRuleActive(rule, groups) {
+  if (rule.enabled === false) return false;
+  if (!rule.groupId) return true;
+  const group = groups.find((g) => g.id === rule.groupId);
+  return !group || group.enabled !== false;
 }
 
 export async function getNextRuleId() {
@@ -168,7 +198,7 @@ export function validateRule(rule) {
 
 // ---- Rebuild DNR rules from storage ----
 export async function rebuildDnrFromStorage() {
-  const [rules, enabled] = await Promise.all([getRules(), getEnabled()]);
+  const [rules, groups, enabled] = await Promise.all([getRules(), getGroups(), getEnabled()]);
 
   const existing = await chrome.declarativeNetRequest.getDynamicRules();
   const removeRuleIds = existing.map((r) => r.id);
@@ -177,7 +207,7 @@ export async function rebuildDnrFromStorage() {
   const failedRules = [];
 
   if (enabled) {
-    const activeRules = rules.filter((r) => r.enabled !== false);
+    const activeRules = rules.filter((r) => isRuleActive(r, groups));
     for (const r of activeRules) {
       const errors = validateRule(r);
       if (errors.length === 0) {
@@ -252,6 +282,22 @@ export async function msgImportRules(rules) {
 
 export async function msgReorderRules(orderedIds) {
   return chrome.runtime.sendMessage({ type: "REORDER_RULES", orderedIds });
+}
+
+export async function msgCreateGroup(name) {
+  return chrome.runtime.sendMessage({ type: "CREATE_GROUP", name });
+}
+
+export async function msgUpdateGroup(group) {
+  return chrome.runtime.sendMessage({ type: "UPDATE_GROUP", group });
+}
+
+export async function msgDeleteGroup(id) {
+  return chrome.runtime.sendMessage({ type: "DELETE_GROUP", id });
+}
+
+export async function msgMoveRule(ruleId, groupId) {
+  return chrome.runtime.sendMessage({ type: "MOVE_RULE", ruleId, groupId });
 }
 
 export async function msgGetEnabled() {

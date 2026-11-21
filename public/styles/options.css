@@ -265,6 +265,195 @@ button:active {
   margin: 0;
 }
 
+[hidden] {
+  display: none !important;
+}
+
+/* === Tabs === */
+
+.group-tabs {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  margin-right: 12px;
+}
+
+.tab-strip {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  /* Fade the right edge when tabs overflow */
+  mask-image: linear-gradient(to right, #000 calc(100% - 16px), transparent);
+}
+
+.tab-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.group-tabs h2 {
+  margin-right: 4px;
+}
+
+.tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  color: var(--muted);
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.15s, background 0.15s, opacity 0.15s;
+}
+
+.tab:hover {
+  color: var(--fg);
+  background: var(--bg);
+}
+
+.tab:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+
+.tab[aria-selected="true"] {
+  color: var(--fg);
+  font-weight: 600;
+}
+
+.tab[aria-selected="true"]::after {
+  content: "";
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 0;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--primary);
+}
+
+.tab.off .tab-name {
+  opacity: 0.5;
+}
+
+.tab-count {
+  min-width: 14px;
+  font-size: 11px;
+  font-weight: 500;
+  text-align: center;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* On hover the "⋯" menu button takes the count's place, so hidden menus take no room */
+.tab:has(.tab-menu-btn):hover .tab-count,
+.tab:has(.tab-menu-btn):focus-within .tab-count {
+  display: none;
+}
+
+.tab.drop-target {
+  color: var(--fg);
+  background: var(--ring);
+  box-shadow: inset 0 0 0 2px var(--primary);
+}
+
+.tab-menu-btn,
+.tab-add {
+  padding: 0 4px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  line-height: 1;
+}
+
+.tab-menu-btn {
+  display: none;
+  width: 14px;
+  height: 17px;
+  justify-content: center;
+  font-size: 13px;
+}
+
+.tab:hover .tab-menu-btn,
+.tab:focus-within .tab-menu-btn {
+  display: inline-flex;
+}
+
+.tab-menu-btn:hover,
+.tab-add:hover {
+  color: var(--fg);
+  background: var(--border);
+}
+
+.tab-add {
+  margin-left: 2px;
+  padding: 4px 8px;
+  font-size: 18px;
+}
+
+.tab-input {
+  width: 130px;
+  padding: 4px 8px;
+  border: 2px solid var(--primary);
+  border-radius: 8px;
+  font: inherit;
+  outline: none;
+  box-shadow: 0 0 0 3px var(--ring);
+}
+
+.tab-menu {
+  position: fixed;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  min-width: 120px;
+  padding: 4px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.tab-menu button {
+  justify-content: flex-start;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.tab-menu button.danger {
+  color: var(--danger);
+}
+
+.toggle-switch.small {
+  width: 34px;
+  height: 20px;
+  align-self: center;
+}
+
+.toggle-switch.small .toggle-slider:before {
+  width: 14px;
+  height: 14px;
+}
+
+.toggle-switch.small input:checked + .toggle-slider:before {
+  transform: translateX(14px);
+}
+
+.form-title-tab {
+  font-weight: 500;
+  color: var(--muted);
+}
+
 .rules-actions {
   display: flex;
   gap: 8px;
@@ -309,7 +498,8 @@ button:active {
   border-color: var(--border-strong);
 }
 
-.rule-item.disabled {
+.rule-item.disabled,
+.rule-item.group-off {
   opacity: 0.5;
 }
 
@@ -415,6 +605,17 @@ button:active {
   letter-spacing: 0.5px;
   background: #e5e7eb;
   color: #1f2937;
+}
+
+.rule-group-badge {
+  display: inline-block;
+  margin: 6px 0 0 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 500;
+  border: 1px solid var(--border);
+  color: var(--muted);
 }
 
 .rule-actions {

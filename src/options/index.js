@@ -3,6 +3,12 @@
 
 import {
   RULES_KEY,
+  GROUPS_KEY,
+  isRuleActive,
+  msgCreateGroup,
+  msgUpdateGroup,
+  msgDeleteGroup,
+  msgMoveRule,
   msgListRules,
   msgAddRule,
   msgUpdateRule,
@@ -34,19 +40,30 @@ const rulesListEl = document.getElementById("rules-list");
 const exportBtn = document.getElementById("export-btn");
 const importBtn = document.getElementById("import-btn");
 const importFile = document.getElementById("import-file");
+const tabsEl = document.getElementById("group-tabs");
+const groupToggleWrap = document.getElementById("group-toggle-wrap");
+const groupToggle = document.getElementById("group-toggle");
+
+const ALL = "all";
+const ACTIVE_GROUP_KEY = "activeGroup";
+const REDIRECTOR_IMPORT_TAB = "Imported from Redirector";
 
 let rules = [];
+let groups = [];
+let activeGroup = ALL;
 
 // === Initialization ===
 
 async function init() {
+  const { [ACTIVE_GROUP_KEY]: saved } = await chrome.storage.local.get(ACTIVE_GROUP_KEY);
+  activeGroup = saved || ALL;
   await loadEnabled();
   await loadRules();
   attachEventListeners();
 
   // Auto-refresh rule list when rules sync from another device
   chrome.storage.onChanged.addListener((changes, areaName) => {
-    if (areaName === "sync" && changes[RULES_KEY]) {
+    if (areaName === "sync" && (changes[RULES_KEY] || changes[GROUPS_KEY])) {
       loadRules();
     }
   });
@@ -67,24 +84,38 @@ async function loadRules() {
   const res = await msgListRules();
   if (res?.ok) {
     rules = res.rules;
+    groups = res.groups || [];
+    if (activeGroup !== ALL && !groups.some((g) => g.id === activeGroup)) {
+      setActiveGroup(ALL);
+    }
+    renderTabs();
     renderRules();
+    updateFormTitle();
   }
 }
 
 // === UI Updates ===
 
+function visibleRules() {
+  return activeGroup === ALL ? rules : rules.filter((r) => r.groupId === activeGroup);
+}
+
+function groupById(id) {
+  return groups.find((g) => g.id === id);
+}
+
 function renderRules() {
-  if (rules.length === 0) {
-    rulesListEl.innerHTML = `
-      <div class="empty-state">
-        <p>No redirect rules yet. Add your first rule above!</p>
-      </div>
-    `;
+  const shown = visibleRules();
+  if (shown.length === 0) {
+    const message = rules.length === 0
+      ? "No redirect rules yet. Add your first rule above!"
+      : "No rules in this tab. Add one above, or drag a rule onto this tab.";
+    rulesListEl.innerHTML = `<div class="empty-state"><p>${message}</p></div>`;
     return;
   }
 
   rulesListEl.innerHTML = "";
-  rules.forEach((rule) => {
+  shown.forEach((rule) => {
     const ruleEl = createRuleElement(rule);
     rulesListEl.appendChild(ruleEl);
   });
@@ -92,9 +123,12 @@ function renderRules() {
 
 function createRuleElement(rule) {
   const div = document.createElement("div");
-  div.className = `rule-item ${rule.enabled === false ? "disabled" : ""}`;
+  const tabOff = rule.enabled !== false && !isRuleActive(rule, groups);
+  div.className = `rule-item ${rule.enabled === false ? "disabled" : ""} ${tabOff ? "group-off" : ""}`;
   div.dataset.ruleId = rule.id;
   const typeLabel = rule.type === "regex" ? "Regex" : "Wildcard";
+  const group = activeGroup === ALL ? groupById(rule.groupId) : null;
+  const groupBadge = group ? `<span class="rule-group-badge">${escapeHtml(group.name)}</span>` : "";
 
   div.innerHTML = `
     <div class="drag-handle" title="Drag to reorder">⠿</div>
@@ -113,7 +147,7 @@ function createRuleElement(rule) {
           <code>${escapeHtml(rule.type === "regex" ? (rule.regexSubstitution || rule.to) : rule.to)}</code>
         </div>
       </div>
-      <span class="rule-type-badge">${typeLabel}</span>
+      <span class="rule-type-badge">${typeLabel}</span>${groupBadge}
     </div>
     <div class="rule-actions">
       <button class="edit-btn" data-rule-id="${rule.id}" title="Edit">Edit</button>
@@ -122,6 +156,255 @@ function createRuleElement(rule) {
   `;
 
   return div;
+}
+
+// === Tabs ===
+
+function setActiveGroup(id) {
+  activeGroup = id;
+  chrome.storage.local.set({ [ACTIVE_GROUP_KEY]: id });
+}
+
+function renderTabs() {
+  closeTabMenu();
+  tabsEl.innerHTML = "";
+
+  if (groups.length === 0) {
+    const h2 = document.createElement("h2");
+    h2.textContent = "Redirect Rules";
+    tabsEl.append(h2, createAddTabButton());
+  } else {
+    // Tabs scroll sideways; "+" sits outside the strip so it is never clipped
+    const strip = document.createElement("div");
+    strip.className = "tab-strip";
+    strip.append(createTab(ALL, "All", rules.length));
+    for (const g of groups) {
+      const count = rules.filter((r) => r.groupId === g.id).length;
+      strip.append(createTab(g.id, g.name, count, g.enabled === false));
+    }
+    tabsEl.append(strip, createAddTabButton());
+    strip.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }
+
+  const group = groupById(activeGroup);
+  groupToggleWrap.hidden = !group;
+  if (group) groupToggle.checked = group.enabled !== false;
+}
+
+function createTab(id, name, count, off = false) {
+  const tab = document.createElement("div");
+  const selected = id === activeGroup;
+  tab.className = `tab${off ? " off" : ""}`;
+  tab.setAttribute("role", "tab");
+  tab.setAttribute("aria-selected", String(selected));
+  tab.tabIndex = selected ? 0 : -1;
+  tab.dataset.groupId = id;
+  if (off) tab.title = "This tab is turned off";
+  tab.innerHTML = `<span class="tab-name">${escapeHtml(name)}</span><span class="tab-count">${count}</span>`;
+  if (id !== ALL) {
+    const menuBtn = document.createElement("button");
+    menuBtn.type = "button";
+    menuBtn.className = "tab-menu-btn";
+    menuBtn.title = "Tab options";
+    menuBtn.setAttribute("aria-label", `Options for ${name}`);
+    menuBtn.textContent = "⋯";
+    tab.append(menuBtn);
+  }
+  return tab;
+}
+
+function createAddTabButton() {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "tab-add";
+  btn.title = "New tab";
+  btn.setAttribute("aria-label", "New tab");
+  btn.textContent = "+";
+  return btn;
+}
+
+function selectTab(id) {
+  if (id === activeGroup) return;
+  setActiveGroup(id);
+  renderTabs();
+  renderRules();
+  updateFormTitle();
+  tabsEl.querySelector(`[data-group-id="${id}"]`)?.focus();
+}
+
+/** Replace `anchor` with a text field; resolves with the trimmed name, or null if cancelled. */
+function editTabName(anchor, initial = "") {
+  return new Promise((resolve) => {
+    const input = document.createElement("input");
+    input.type = "text";
+    input.className = "tab-input";
+    input.maxLength = 30;
+    input.value = initial;
+    input.placeholder = "Tab name";
+    input.setAttribute("aria-label", "Tab name");
+    anchor.replaceWith(input);
+    input.focus();
+    input.select();
+
+    let done = false;
+    const finish = (value) => {
+      if (done) return;
+      done = true;
+      resolve(value);
+    };
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") finish(input.value.trim() || null);
+      if (e.key === "Escape") finish(null);
+    });
+    input.addEventListener("blur", () => finish(input.value.trim() || null));
+  });
+}
+
+async function handleAddTab(btn) {
+  const name = await editTabName(btn);
+  if (!name) return renderTabs();
+  const res = await msgCreateGroup(name);
+  if (!res?.ok) {
+    alert("Failed to create tab: " + (res?.error || "Unknown error"));
+    return renderTabs();
+  }
+  setActiveGroup(res.group.id);
+  await loadRules();
+}
+
+async function handleRenameTab(id) {
+  const group = groupById(id);
+  const tab = tabsEl.querySelector(`[data-group-id="${id}"]`);
+  if (!group || !tab) return;
+  const name = await editTabName(tab, group.name);
+  if (name && name !== group.name) {
+    const res = await msgUpdateGroup({ id, name });
+    if (!res?.ok) alert("Failed to rename tab: " + (res?.error || "Unknown error"));
+  }
+  await loadRules();
+}
+
+async function handleDeleteTab(id) {
+  const group = groupById(id);
+  if (!group) return;
+  const count = rules.filter((r) => r.groupId === id).length;
+  const detail = count ? ` Its ${count} rule${count === 1 ? "" : "s"} will move to All.` : "";
+  if (!confirm(`Delete the tab "${group.name}"?${detail}`)) return;
+  const res = await msgDeleteGroup(id);
+  if (!res?.ok) alert("Failed to delete tab: " + (res?.error || "Unknown error"));
+  if (activeGroup === id) setActiveGroup(ALL);
+  await loadRules();
+}
+
+let tabMenuEl = null;
+
+function openTabMenu(id, anchor) {
+  closeTabMenu();
+  tabMenuEl = document.createElement("div");
+  tabMenuEl.className = "tab-menu";
+  tabMenuEl.setAttribute("role", "menu");
+  tabMenuEl.innerHTML = `
+    <button type="button" role="menuitem" data-action="rename">Rename</button>
+    <button type="button" role="menuitem" data-action="delete" class="danger">Delete</button>
+  `;
+  const rect = (anchor.closest(".tab") || anchor).getBoundingClientRect();
+  tabMenuEl.style.top = `${rect.bottom + 4}px`;
+  tabMenuEl.style.left = `${rect.left}px`;
+  tabMenuEl.addEventListener("click", (e) => {
+    const action = e.target.dataset.action;
+    closeTabMenu();
+    if (action === "rename") handleRenameTab(id);
+    if (action === "delete") handleDeleteTab(id);
+  });
+  document.body.append(tabMenuEl);
+  tabMenuEl.querySelector("button").focus();
+}
+
+function closeTabMenu() {
+  tabMenuEl?.remove();
+  tabMenuEl = null;
+}
+
+function initTabs() {
+  tabsEl.addEventListener("click", (e) => {
+    if (e.target.closest(".tab-add")) return handleAddTab(e.target.closest(".tab-add"));
+    const tab = e.target.closest(".tab");
+    if (!tab) return;
+    if (e.target.closest(".tab-menu-btn")) {
+      e.stopPropagation();
+      return openTabMenu(tab.dataset.groupId, e.target);
+    }
+    selectTab(tab.dataset.groupId);
+  });
+
+  tabsEl.addEventListener("dblclick", (e) => {
+    const tab = e.target.closest(".tab");
+    if (tab && tab.dataset.groupId !== ALL && !e.target.closest(".tab-menu-btn")) {
+      handleRenameTab(tab.dataset.groupId);
+    }
+  });
+
+  tabsEl.addEventListener("keydown", (e) => {
+    const tab = e.target.closest(".tab");
+    if (!tab || e.target !== tab) return;
+    const tabs = [...tabsEl.querySelectorAll(".tab")];
+    const i = tabs.indexOf(tab);
+    if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+      e.preventDefault();
+      const next = tabs[(i + (e.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length];
+      selectTab(next.dataset.groupId);
+    } else if (e.key === "F2" && tab.dataset.groupId !== ALL) {
+      handleRenameTab(tab.dataset.groupId);
+    }
+  });
+
+  document.addEventListener("click", (e) => {
+    if (tabMenuEl && !tabMenuEl.contains(e.target)) closeTabMenu();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeTabMenu();
+  });
+  // The menu is fixed-position, so close it rather than let it drift when anything scrolls
+  document.addEventListener("scroll", closeTabMenu, true);
+
+  groupToggle.addEventListener("change", async () => {
+    const res = await msgUpdateGroup({ id: activeGroup, enabled: groupToggle.checked });
+    if (!res?.ok) alert("Failed to update tab: " + (res?.error || "Unknown error"));
+    await loadRules();
+  });
+
+  // Drop a dragged rule onto a tab to move it there ("All" removes it from its tab)
+  const dropTarget = (e) => {
+    const tab = e.target.closest(".tab");
+    if (!tab || !draggedEl) return null;
+    const rule = rules.find((r) => r.id === Number(draggedEl.dataset.ruleId));
+    const target = tab.dataset.groupId === ALL ? undefined : tab.dataset.groupId;
+    return rule && rule.groupId !== target ? tab : null;
+  };
+  const clearDropTargets = () =>
+    tabsEl.querySelectorAll(".tab.drop-target").forEach((el) => el.classList.remove("drop-target"));
+
+  tabsEl.addEventListener("dragover", (e) => {
+    const tab = dropTarget(e);
+    clearDropTargets();
+    if (!tab) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    tab.classList.add("drop-target");
+  });
+  tabsEl.addEventListener("dragleave", (e) => {
+    if (!tabsEl.contains(e.relatedTarget)) clearDropTargets();
+  });
+  tabsEl.addEventListener("drop", async (e) => {
+    const tab = dropTarget(e);
+    clearDropTargets();
+    if (!tab) return;
+    e.preventDefault();
+    const groupId = tab.dataset.groupId === ALL ? null : tab.dataset.groupId;
+    const res = await msgMoveRule(Number(draggedEl.dataset.ruleId), groupId);
+    if (!res?.ok) alert("Failed to move rule: " + (res?.error || "Unknown error"));
+    await loadRules();
+  });
 }
 
 function escapeHtml(str) {
@@ -183,13 +466,25 @@ function isValidRedirectUrl(url) {
 
 // === Form Management ===
 
+function updateFormTitle() {
+  if (editRuleId.value) return;
+  const group = groupById(activeGroup);
+  formTitle.textContent = "Add New Rule";
+  if (group) {
+    const where = document.createElement("span");
+    where.className = "form-title-tab";
+    where.textContent = ` in ${group.name}`;
+    formTitle.append(where);
+  }
+}
+
 function resetForm() {
   editRuleId.value = "";
   ruleName.value = "";
   ruleFrom.value = "";
   ruleTo.value = "";
   ruleRegex.checked = false;
-  formTitle.textContent = "Add New Rule";
+  updateFormTitle();
   saveBtn.textContent = "Add Rule";
   cancelBtn.style.display = "none";
 }
@@ -286,6 +581,7 @@ async function handleFormSubmit(e) {
         alert("Failed to update rule: " + (res?.error || "Unknown error"));
       }
     } else {
+      if (groupById(activeGroup)) rule.groupId = activeGroup;
       const res = await msgAddRule(rule);
       if (res?.ok) {
         resetForm();
@@ -349,6 +645,7 @@ async function handleImportFile(e) {
         alert("Failed to convert Redirector format");
         return;
       }
+      rulesToImport = rulesToImport.map((r) => ({ ...r, group: REDIRECTOR_IMPORT_TAB }));
     } else if (Array.isArray(imported)) {
       // Native Resurrector format
       rulesToImport = imported;
@@ -361,6 +658,8 @@ async function handleImportFile(e) {
     if (res?.ok) {
       showFeedback(importBtn, `Imported ${rulesToImport.length}!`, "#10b981");
       await loadRules();
+    } else {
+      alert("Failed to import: " + (res?.error || "Unknown error"));
     }
   } catch (err) {
     alert("Failed to import: " + err.message);
@@ -430,6 +729,7 @@ function attachEventListeners() {
 
   // Drag-and-drop reordering
   initDragAndDrop();
+  initTabs();
 }
 
 // === Drag & Drop ===
@@ -505,8 +805,12 @@ function initDragAndDrop() {
       el.classList.remove("drag-over")
     );
 
+    // Only the current tab's rules are on screen: slot their new order into the full list
     const items = rulesListEl.querySelectorAll(".rule-item");
-    const orderedIds = [...items].map((el) => Number(el.dataset.ruleId));
+    const visibleIds = [...items].map((el) => Number(el.dataset.ruleId));
+    const visible = new Set(visibleIds);
+    let next = 0;
+    const orderedIds = rules.map((r) => (visible.has(r.id) ? visibleIds[next++] : r.id));
 
     const res = await msgReorderRules(orderedIds);
     if (res?.ok) {
