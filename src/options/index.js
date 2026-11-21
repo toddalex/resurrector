@@ -183,12 +183,25 @@ function renderTabs() {
       strip.append(createTab(g.id, g.name, count, g.enabled === false));
     }
     tabsEl.append(strip, createAddTabButton());
-    strip.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: "nearest", inline: "nearest" });
   }
 
   const group = groupById(activeGroup);
   groupToggleWrap.hidden = !group;
   if (group) groupToggle.checked = group.enabled !== false;
+
+  // Measure last: showing the tab switch above narrows the strip
+  const strip = tabsEl.querySelector(".tab-strip");
+  if (strip) revealActiveTab(strip);
+}
+
+/** Scroll the tab strip sideways so the active tab is visible, without scrolling the page. */
+function revealActiveTab(strip) {
+  const tab = strip.querySelector('[aria-selected="true"]');
+  if (!tab) return;
+  const s = strip.getBoundingClientRect();
+  const t = tab.getBoundingClientRect();
+  if (t.left < s.left) strip.scrollLeft -= s.left - t.left;
+  else if (t.right > s.right) strip.scrollLeft += t.right - s.right;
 }
 
 function createTab(id, name, count, off = false) {
@@ -229,7 +242,7 @@ function selectTab(id) {
   renderTabs();
   renderRules();
   updateFormTitle();
-  tabsEl.querySelector(`[data-group-id="${id}"]`)?.focus();
+  tabsEl.querySelector(`[data-group-id="${id}"]`)?.focus({ preventScroll: true });
 }
 
 /** Replace `anchor` with a text field; resolves with the trimmed name, or null if cancelled. */
