@@ -16,6 +16,7 @@ import {
   msgSyncIcon,
   checkRe2Compatibility,
 } from "../shared/storage.js";
+import { convertRedirectorFormat } from "../shared/redirector.js";
 
 // DOM Elements
 const masterToggle = document.getElementById("master-toggle");
@@ -329,36 +330,6 @@ async function handleExport() {
 
 function handleImportClick() {
   importFile.click();
-}
-
-/**
- * Convert Redirector extension format to Resurrector format
- * Redirector uses: { redirects: [{ includePattern, redirectUrl, patternType, description, disabled }] }
- */
-function convertRedirectorFormat(data) {
-  if (!data.redirects || !Array.isArray(data.redirects)) {
-    return null;
-  }
-
-  return data.redirects.map((r) => {
-    const isRegex = r.patternType === "R";
-    const rule = {
-      name: r.description || "Imported Rule",
-      from: r.includePattern || "",
-      type: isRegex ? "regex" : "wildcard",
-      enabled: !r.disabled,
-    };
-
-    if (isRegex) {
-      rule.regexSubstitution = r.redirectUrl || "";
-    } else {
-      // Convert Redirector wildcard syntax ($1, $2) to static URL
-      // For simple cases, just use the redirect URL as-is
-      rule.to = r.redirectUrl || "";
-    }
-
-    return rule;
-  });
 }
 
 async function handleImportFile(e) {

@@ -2,6 +2,13 @@
 
 All notable changes to Resurrector (Redirector) will be documented in this file.
 
+## [Unreleased]
+
+### Fixed
+- **Redirector import: capture groups** — Redirector `$1`–`$9` references are converted to Chrome's `\1`–`\9`. Wildcard rules whose redirect URL uses captures (e.g. `https://demo.url.com*` → `https://beta.demo.url.com$1`) are imported as anchored regex rules so the captured text is carried over instead of appearing as a literal `$1`
+- **Redirector import: whole-URL replacement** — Imported regex rules are wrapped to match the full URL, matching Redirector's behavior of replacing the entire URL rather than only the matched portion
+- **Redirector import: resource types** — Each rule's `appliesTo` list is now kept (`imageset` maps to `image`; `history` is dropped because Chrome has no equivalent)
+
 ## [1.2.1] - 2026-04-20
 
 ### Added
